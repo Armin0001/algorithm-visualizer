@@ -59,7 +59,9 @@ jobs:
           site=publish/wwwroot
           # A project site is served from /<repo>/, so the app's base path has to match it.
           sed -i 's|<base href="/" />|<base href="/${{ github.event.repository.name }}/" />|' "$site/index.html"
-          # Pages answers unknown paths with 404.html. Making that the app lets deep links such as /search load.
+          # Pages serves search.html at /search, so links to the search page answer 200 instead of 404.
+          cp "$site/index.html" "$site/search.html"
+          # Any other unknown path gets 404.html. Making that the app means it still loads there.
           cp "$site/index.html" "$site/404.html"
           touch "$site/.nojekyll"
           # Pages compresses responses itself, so the pre-compressed copies are dead weight.
