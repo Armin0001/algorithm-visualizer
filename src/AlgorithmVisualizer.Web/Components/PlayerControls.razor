@@ -1,0 +1,146 @@
+@using System.Diagnostics
+@implements IDisposable
+
+<div class="player">
+    <div class="player-buttons" role="group" aria-label="Playback">
+        <button type="button" class="icon-button" @onclick="ToStart" disabled="@Player.IsAtStart" title="Back to the start" aria-label="Back to the start">⏮</button>
+        <button type="button" class="icon-button" @onclick="Back" disabled="@Player.IsAtStart" title="Step back" aria-label="Step back">◀</button>
+        <button type="button" class="play-button" @onclick="TogglePlay">@PlayLabel</button>
+        <button type="button" class="icon-button" @onclick="Forward" disabled="@Player.IsAtEnd" title="Step forward" aria-label="Step forward">▶</button>
+        <button type="button" class="icon-button" @onclick="ToEnd" disabled="@Player.IsAtEnd" title="Skip to the end" aria-label="Skip to the end">⏭</button>
+    </div>
+
+    <label class="speed">
+        <span>Speed</span>
+        <input type="range" min="0" max="@(Speeds.Length - 1)" @bind="_speedIndex" @bind:event="oninput" />
+        <span class="value">@Speeds[_speedIndex] steps/s</span>
+    </label>
+
+    <div class="scrub">
+        <input type="range" min="0" max="@Player.Length" value="@Player.Position" @oninput="Scrub" aria-label="Scrub through the steps" />
+        <span class="step-count">Step @Player.Position.ToString("N0") of @Player.Length.ToString("N0")</span>
+    </div>
+</div>
+
+@code {
+    private static readonly int[] Speeds = [2, 5, 10, 25, 50, 100, 250, 500, 1000, 2500];
+
+    private TracePlayer<int>? _current;
+    private CancellationTokenSource? _playback;
+    private int _speedIndex = 5;
+
+    /// <summary>The run being shown. A new player (new input or algorithm) stops playback.</summary>
+    [Parameter, EditorRequired]
+    public TracePlayer<int> Player { get; set; } = default!;
+
+    /// <summary>Raised after every move, so the page redraws.</summary>
+    [Parameter]
+    public EventCallback Changed { get; set; }
+
+    private bool IsPlaying => _playback is not null;
+
+    private string PlayLabel => IsPlaying ? "Pause" : Player.IsAtEnd && !Player.IsAtStart ? "Replay" : "Play";
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_current, Player))
+        {
+            Stop();
+            _current = Player;
+        }
+    }
+
+    private async Task TogglePlay()
+    {
+        if (IsPlaying)
+        {
+            Stop();
+            return;
+        }
+
+        if (Player.IsAtEnd)
+        {
+            Player.Seek(0);
+        }
+
+        await PlayAsync();
+    }
+
+    // Runs at about 60 frames a second and owes the player speed × elapsed time steps, so playback speed
+    // doesn't depend on how fast frames actually arrive.
+    private async Task PlayAsync()
+    {
+        var playback = new CancellationTokenSource();
+        _playback = playback;
+        try
+        {
+            using var frame = new PeriodicTimer(TimeSpan.FromMilliseconds(16));
+            long last = Stopwatch.GetTimestamp();
+            double owed = 0;
+            while (await frame.WaitForNextTickAsync(playback.Token))
+            {
+                long now = Stopwatch.GetTimestamp();
+                owed += Speeds[_speedIndex] * Stopwatch.GetElapsedTime(last, now).TotalSeconds;
+                last = now;
+
+                int steps = (int)owed;
+                if (steps == 0)
+                {
+                    continue;
+                }
+
+                owed -= steps;
+                for (int i = 0; i < steps && Player.Next(); i++)
+                {
+                }
+
+                await Changed.InvokeAsync();
+                if (Player.IsAtEnd)
+                {
+                    break;
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Paused, or the page swapped in a new run.
+        }
+        finally
+        {
+            if (ReferenceEquals(_playback, playback))
+            {
+                _playback = null;
+            }
+
+            playback.Dispose();
+        }
+
+        StateHasChanged();
+    }
+
+    private void Stop()
+    {
+        _playback?.Cancel();
+        _playback = null;
+    }
+
+    private Task Move(Action move)
+    {
+        Stop();
+        move();
+        return Changed.InvokeAsync();
+    }
+
+    private Task ToStart() => Move(() => Player.Seek(0));
+
+    private Task Back() => Move(() => Player.Previous());
+
+    private Task Forward() => Move(() => Player.Next());
+
+    private Task ToEnd() => Move(() => Player.Seek(Player.Length));
+
+    private Task Scrub(ChangeEventArgs e) =>
+        Move(() => Player.Seek(int.TryParse(e.Value?.ToString(), out int position) ? position : Player.Position));
+
+    public void Dispose() => Stop();
+}

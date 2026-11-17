@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Algorithm Visualizer: sorting and searching in C#</title>
+    <meta name="description" content="Watch nine sorting algorithms and three searches run step by step. Written in C# and running in your browser on .NET 10 Blazor WebAssembly." />
+    <meta name="theme-color" content="#4f46e5" />
+    <meta property="og:title" content="Algorithm Visualizer" />
+    <meta property="og:description" content="Sorting and searching algorithms in C#, replayed step by step in the browser with real comparison and swap counts." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://armin0001.github.io/algorithm-visualizer/" />
+    <!-- The deploy workflow rewrites this to /algorithm-visualizer/ for GitHub Pages. -->
+    <base href="/" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="preload" id="webassembly" />
+    <link rel="stylesheet" href="css/app.css" />
+    <script type="importmap"></script>
+</head>
+
+<body>
+    <div id="app">
+        <div class="boot">
+            <svg class="loading-progress" aria-hidden="true">
+                <circle r="40%" cx="50%" cy="50%" />
+                <circle r="40%" cx="50%" cy="50%" />
+            </svg>
+            <div class="loading-progress-text"></div>
+            <p class="boot-note">Loading the .NET runtime into your browser…</p>
+        </div>
+    </div>
+
+    <noscript>This app runs C# in your browser through WebAssembly, so it needs JavaScript turned on.</noscript>
+
+    <div id="blazor-error-ui">
+        Something went wrong.
+        <a href="." class="reload">Reload</a>
+        <span class="dismiss">🗙</span>
+    </div>
+    <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
+</body>
+
+</html>

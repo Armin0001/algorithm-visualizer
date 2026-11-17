@@ -1,0 +1,244 @@
+@page "/search"
+
+<PageTitle>Searching · Algorithm Visualizer</PageTitle>
+
+<section class="intro">
+    <h1>Searching, step by step</h1>
+    <p>
+        Every search here returns the <em>first</em> match, so on the same sorted array they always agree on the answer.
+        What differs is how many elements each one has to look at to get there.
+    </p>
+</section>
+
+<section class="panel controls" aria-label="Choose what to search for">
+    <label>
+        <span>Algorithm</span>
+        <select value="@_algorithm.Info.Id" @onchange="ChangeAlgorithm">
+            @foreach (var algorithm in AlgorithmCatalog.Searches)
+            {
+                <option value="@algorithm.Info.Id">@algorithm.Info.Name</option>
+            }
+        </select>
+    </label>
+    <label class="target">
+        <span>Find</span>
+        <input type="number" min="0" max="999" value="@_target" @onchange="ChangeTarget" />
+    </label>
+    <div class="button-row">
+        <button type="button" class="secondary" @onclick="PickPresent">A value in the array</button>
+        <button type="button" class="secondary" @onclick="PickMissing">A missing value</button>
+    </div>
+    <label class="size">
+        <span>Size <span class="value">@_size</span></span>
+        <input type="range" min="8" max="64" value="@_size" @onchange="ChangeSize" />
+    </label>
+    <button type="button" class="secondary" @onclick="NewInput">New array</button>
+</section>
+
+<section class="panel stage" aria-label="Visualization">
+    @{
+        var probed = ProbedIndices();
+    }
+    <BarChart Values="_player.Values" StateOf="i => StateOf(i, probed)" ShowLabels="_size <= 40"
+              AriaLabel="@($"{_size} sorted values being searched for {_target}")" />
+    <p class="result" aria-live="polite">@ResultText</p>
+    <PlayerControls Player="_player" Changed="StateHasChanged" />
+    <div class="stage-footer">
+        <dl class="stats">
+            <div><dt>Comparisons</dt><dd>@_player.Counts.Comparisons.ToString("N0")</dd></div>
+            <div><dt>Window</dt><dd>@WindowText</dd></div>
+        </dl>
+        <Legend Items="LegendItems" />
+    </div>
+</section>
+
+<div class="columns">
+    <AlgorithmCard Info="_algorithm.Info" SourceFile="@($"Searching/{_algorithm.GetType().Name}.cs")" />
+
+    <section class="panel" aria-labelledby="compare-heading">
+        <h2 id="compare-heading">Same target, every search</h2>
+        <p class="muted">Comparisons needed to find @_target in the array above (@_size values). Pick a row to watch it.</p>
+        <div class="table-scroll">
+        <table class="compare-table">
+            <thead>
+                <tr><th scope="col">Algorithm</th><th scope="col">Answer</th><th scope="col" class="work-col">Comparisons</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var (algorithm, index, comparisons) in _comparison)
+                {
+                    <tr class="@(algorithm == _algorithm ? "selected" : "")">
+                        <th scope="row"><button type="button" class="link-button" @onclick="() => Select(algorithm)">@algorithm.Info.Name</button></th>
+                        <td>@(index >= 0 ? $"index {index}" : "not found")</td>
+                        <td class="work-col"><span class="work-bar" style="width:@(Percent(comparisons))%"></span><span class="work-value">@comparisons</span></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        </div>
+    </section>
+</div>
+
+@code {
+    private static readonly IReadOnlyList<(string, string)> LegendItems =
+    [
+        ("compare", "Being checked"),
+        ("probed", "Already checked"),
+        ("eliminated", "Ruled out"),
+        ("found", "First match"),
+    ];
+
+    private ISearchAlgorithm _algorithm = AlgorithmCatalog.FindSearch("binary-search");
+    private int _size = 32;
+    private int _seed = 7;
+    private int _target;
+    private int[] _input = [];
+    private RecordedRun<int> _run = default!;
+    private TracePlayer<int> _player = default!;
+    private (ISearchAlgorithm Algorithm, int Index, long Comparisons)[] _comparison = [];
+
+    // The starting state can come from the link, e.g. search?algorithm=jump-search&target=42&size=64.
+    [SupplyParameterFromQuery(Name = "algorithm")]
+    public string? AlgorithmFromUrl { get; set; }
+
+    [SupplyParameterFromQuery(Name = "target")]
+    public int? TargetFromUrl { get; set; }
+
+    [SupplyParameterFromQuery(Name = "size")]
+    public int? SizeFromUrl { get; set; }
+
+    [SupplyParameterFromQuery(Name = "seed")]
+    public int? SeedFromUrl { get; set; }
+
+    [SupplyParameterFromQuery(Name = "step")]
+    public int? StepFromUrl { get; set; }
+
+    protected override void OnInitialized()
+    {
+        _algorithm = AlgorithmCatalog.Searches.FirstOrDefault(a => a.Info.Id == AlgorithmFromUrl) ?? _algorithm;
+        _size = SizeFromUrl is int size ? Math.Clamp(size, 8, 64) : _size;
+        _seed = SeedFromUrl ?? _seed;
+        _input = InputGenerator.Create(InputShape.Sorted, _size, _seed);
+        _target = TargetFromUrl ?? _input[_size * 2 / 3];
+        Rebuild();
+        if (StepFromUrl is int step)
+        {
+            _player.Seek(step);
+        }
+    }
+
+    private void Rebuild()
+    {
+        _run = _algorithm.Record(_input, _target);
+        _player = new TracePlayer<int>(_run);
+        _comparison = [.. AlgorithmCatalog.Searches.Select(a =>
+        {
+            var tracked = new TrackedArray<int>([.. _input]);
+            int index = a.Search(tracked, _target);
+            return (a, index, tracked.Counts.Comparisons);
+        })];
+    }
+
+    private string ResultText
+    {
+        get
+        {
+            if (!_player.IsAtEnd)
+            {
+                return $"Looking for {_target}…";
+            }
+
+            long comparisons = _player.Counts.Comparisons;
+            return _run.FoundIndex is int index
+                ? $"Found {_target} at index {index} after {comparisons} comparison{(comparisons == 1 ? "" : "s")}."
+                : $"{_target} isn't in the array. It took {comparisons} comparison{(comparisons == 1 ? "" : "s")} to be sure.";
+        }
+    }
+
+    private string WindowText => _player.Window is { } window ? $"{window.Low}–{window.High}" : "whole array";
+
+    // Searches never move data, so "already checked" is every index compared so far, minus the current one.
+    private HashSet<int> ProbedIndices()
+    {
+        var probed = new HashSet<int>();
+        for (int i = 0; i < _player.Position; i++)
+        {
+            if (_run.Steps[i] is { Kind: StepKind.Compare } step)
+            {
+                probed.Add(step.First);
+            }
+        }
+
+        return probed;
+    }
+
+    private string StateOf(int index, HashSet<int> probed)
+    {
+        if (_player.FoundIndex == index)
+        {
+            return "found";
+        }
+
+        if (_player.Highlight is { Kind: StepKind.Compare } step && step.First == index && !_player.IsAtEnd)
+        {
+            return "compare";
+        }
+
+        if (_player.Window is { } window && (index < window.Low || index > window.High))
+        {
+            return "eliminated";
+        }
+
+        return probed.Contains(index) ? "probed" : "";
+    }
+
+    private void ChangeAlgorithm(ChangeEventArgs e) => Select(AlgorithmCatalog.FindSearch(e.Value?.ToString() ?? ""));
+
+    private void Select(ISearchAlgorithm algorithm)
+    {
+        _algorithm = algorithm;
+        Rebuild();
+    }
+
+    private void ChangeTarget(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int target))
+        {
+            _target = target;
+            Rebuild();
+        }
+    }
+
+    private void PickPresent()
+    {
+        _target = _input[Random.Shared.Next(_input.Length)];
+        Rebuild();
+    }
+
+    private void PickMissing()
+    {
+        var present = _input.ToHashSet();
+        int[] missing = [.. Enumerable.Range(InputGenerator.MinValue - 3, InputGenerator.MaxValue - InputGenerator.MinValue + 7).Where(v => !present.Contains(v))];
+        _target = missing[Random.Shared.Next(missing.Length)];
+        Rebuild();
+    }
+
+    private void ChangeSize(ChangeEventArgs e)
+    {
+        _size = int.TryParse(e.Value?.ToString(), out int size) ? Math.Clamp(size, 8, 64) : _size;
+        NewInput();
+    }
+
+    private void NewInput()
+    {
+        _seed = Random.Shared.Next();
+        _input = InputGenerator.Create(InputShape.Sorted, _size, _seed);
+        _target = _input[Random.Shared.Next(_input.Length)];
+        Rebuild();
+    }
+
+    private int Percent(long comparisons)
+    {
+        long max = Math.Max(1, _comparison.Max(c => c.Comparisons));
+        return (int)Math.Max(1, Math.Round(comparisons * 100.0 / max));
+    }
+}

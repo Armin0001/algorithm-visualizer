@@ -1,0 +1,51 @@
+<section class="panel card" aria-labelledby="algorithm-name">
+    <h2 id="algorithm-name">@Info.Name</h2>
+    <p>@Info.Summary</p>
+
+    <table class="complexity">
+        <thead>
+            <tr><th scope="col">Best</th><th scope="col">Average</th><th scope="col">Worst</th><th scope="col">Extra space</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>@Info.Complexity.Best</td><td>@Info.Complexity.Average</td><td>@Info.Complexity.Worst</td><td>@Info.Complexity.Space</td></tr>
+        </tbody>
+    </table>
+
+    <ul class="badges">
+        @if (IsSort)
+        {
+            <li class="@(Info.IsStable ? "good" : "warn")">@(Info.IsStable ? "Stable" : "Not stable")</li>
+            <li>@(Info.IsInPlace ? "In place" : "Uses extra memory")</li>
+        }
+        @if (Info.NeedsIntegerKeys)
+        {
+            <li>Integer keys only</li>
+        }
+        @if (Info.NeedsSortedInput)
+        {
+            <li class="warn">Needs sorted input</li>
+        }
+        else if (!IsSort)
+        {
+            <li class="good">Works on unsorted input</li>
+        }
+    </ul>
+
+    <a class="source-file" href="@SourceUrl" target="_blank" rel="noopener">Read the C# source: @SourceFile</a>
+</section>
+
+@code {
+    private const string Repository = "https://github.com/Armin0001/algorithm-visualizer/blob/main/src/AlgorithmVisualizer.Core/";
+
+    [Parameter, EditorRequired]
+    public AlgorithmInfo Info { get; set; } = default!;
+
+    /// <summary>Path under src/AlgorithmVisualizer.Core, such as Sorting/QuickSort.cs.</summary>
+    [Parameter, EditorRequired]
+    public string SourceFile { get; set; } = "";
+
+    [Parameter]
+    public bool IsSort { get; set; }
+
+    private string SourceUrl => Repository + SourceFile;
+}

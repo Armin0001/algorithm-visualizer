@@ -1,0 +1,11 @@
+<ul class="legend" aria-label="Colour key">
+    @foreach (var (state, label) in Items)
+    {
+        <li><span class="swatch @state" aria-hidden="true"></span>@label</li>
+    }
+</ul>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<(string State, string Label)> Items { get; set; } = [];
+}

@@ -1,0 +1,31 @@
+@* One bar per array element. The page decides each bar's state (compared, swapped, sorted, ...) through StateOf. *@
+<div class="bars" role="img" aria-label="@AriaLabel">
+    @for (int i = 0; i < Values.Count; i++)
+    {
+        int value = Values[i];
+        <div class="bar @StateOf(i)" style="height:@(HeightPercent(value))%">
+            @if (ShowLabels)
+            {
+                <span class="bar-label">@value</span>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<int> Values { get; set; } = [];
+
+    [Parameter, EditorRequired]
+    public Func<int, string> StateOf { get; set; } = _ => "";
+
+    [Parameter]
+    public bool ShowLabels { get; set; }
+
+    [Parameter]
+    public string AriaLabel { get; set; } = "Array values drawn as bars";
+
+    // Whole percentages only, so the CSS never depends on a culture's decimal separator.
+    private static int HeightPercent(int value) =>
+        Math.Clamp((int)Math.Round(value * 100.0 / InputGenerator.MaxValue), 2, 100);
+}

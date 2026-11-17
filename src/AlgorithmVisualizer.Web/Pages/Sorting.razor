@@ -1,0 +1,204 @@
+@page "/"
+
+<PageTitle>Sorting · Algorithm Visualizer</PageTitle>
+
+<section class="intro">
+    <h1>Sorting, step by step</h1>
+    <p>
+        Pick an algorithm and an input, then play it, step through it or scrub back and forth. The counters are real:
+        every comparison and every move the C# implementation makes is recorded, then replayed here.
+    </p>
+</section>
+
+<section class="panel controls" aria-label="Choose what to sort">
+    <label>
+        <span>Algorithm</span>
+        <select value="@_algorithm.Info.Id" @onchange="ChangeAlgorithm">
+            @foreach (var algorithm in AlgorithmCatalog.Sorts)
+            {
+                <option value="@algorithm.Info.Id">@algorithm.Info.Name</option>
+            }
+        </select>
+    </label>
+    <label>
+        <span>Input</span>
+        <select value="@_shape" @onchange="ChangeShape">
+            @foreach (var shape in Enum.GetValues<InputShape>())
+            {
+                <option value="@shape">@ShapeName(shape)</option>
+            }
+        </select>
+    </label>
+    <label class="size">
+        <span>Size <span class="value">@_size</span></span>
+        <input type="range" min="8" max="150" value="@_size" @onchange="ChangeSize" />
+    </label>
+    <button type="button" class="secondary" @onclick="NewInput">New array</button>
+</section>
+
+<section class="panel stage" aria-label="Visualization">
+    <BarChart Values="_player.Values" StateOf="StateOf" AriaLabel="@($"{_size} values being sorted by {_algorithm.Info.Name}")" />
+    <PlayerControls Player="_player" Changed="StateHasChanged" />
+    <div class="stage-footer">
+        <dl class="stats">
+            <div><dt>Comparisons</dt><dd>@_player.Counts.Comparisons.ToString("N0")</dd></div>
+            <div><dt>Swaps</dt><dd>@_player.Counts.Swaps.ToString("N0")</dd></div>
+            <div><dt>Writes</dt><dd>@_player.Counts.Writes.ToString("N0")</dd></div>
+            <div><dt>Reads</dt><dd>@_player.Counts.Reads.ToString("N0")</dd></div>
+        </dl>
+        <Legend Items="LegendItems" />
+    </div>
+</section>
+
+<div class="columns">
+    <AlgorithmCard Info="_algorithm.Info" SourceFile="@($"Sorting/{_algorithm.GetType().Name}.cs")" IsSort="true" />
+
+    <section class="panel" aria-labelledby="compare-heading">
+        <h2 id="compare-heading">Same input, every algorithm</h2>
+        <p class="muted">Work done on the array above (@ShapeName(_shape).ToLowerInvariant(), @_size values). Pick a row to watch it.</p>
+        <div class="table-scroll">
+        <table class="compare-table">
+            <thead>
+                <tr><th scope="col">Algorithm</th><th scope="col">Comparisons</th><th scope="col">Swaps + writes</th><th scope="col" class="work-col">Total work</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var (algorithm, counts) in _comparison)
+                {
+                    long work = Work(counts);
+                    <tr class="@(algorithm == _algorithm ? "selected" : "")">
+                        <th scope="row"><button type="button" class="link-button" @onclick="() => Select(algorithm)">@algorithm.Info.Name</button></th>
+                        <td>@counts.Comparisons.ToString("N0")</td>
+                        <td>@((counts.Swaps + counts.Writes).ToString("N0"))</td>
+                        <td class="work-col"><span class="work-bar" style="width:@(WorkPercent(work))%"></span><span class="work-value">@work.ToString("N0")</span></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        </div>
+    </section>
+</div>
+
+@code {
+    private static readonly IReadOnlyList<(string, string)> LegendItems =
+    [
+        ("compare", "Compared"),
+        ("swap", "Swapped or written"),
+        ("read", "Read"),
+        ("sorted", "In its final place"),
+    ];
+
+    private ISortAlgorithm _algorithm = AlgorithmCatalog.Sorts[0];
+    private InputShape _shape = InputShape.Random;
+    private int _size = 40;
+    private int _seed = 2026;
+    private int[] _input = [];
+    private TracePlayer<int> _player = default!;
+    private (ISortAlgorithm Algorithm, OperationCounts Counts)[] _comparison = [];
+    private long _maxWork = 1;
+
+    // The starting state can come from the link, e.g. ?algorithm=heap-sort&input=reversed&size=60&step=300,
+    // so the README can link straight to any algorithm.
+    [SupplyParameterFromQuery(Name = "algorithm")]
+    public string? AlgorithmFromUrl { get; set; }
+
+    [SupplyParameterFromQuery(Name = "input")]
+    public string? InputFromUrl { get; set; }
+
+    [SupplyParameterFromQuery(Name = "size")]
+    public int? SizeFromUrl { get; set; }
+
+    [SupplyParameterFromQuery(Name = "seed")]
+    public int? SeedFromUrl { get; set; }
+
+    [SupplyParameterFromQuery(Name = "step")]
+    public int? StepFromUrl { get; set; }
+
+    protected override void OnInitialized()
+    {
+        _algorithm = AlgorithmCatalog.Sorts.FirstOrDefault(a => a.Info.Id == AlgorithmFromUrl) ?? _algorithm;
+        _shape = Enum.TryParse(InputFromUrl?.Replace("-", "", StringComparison.Ordinal), ignoreCase: true, out InputShape shape) ? shape : _shape;
+        _size = SizeFromUrl is int size ? Math.Clamp(size, 8, 150) : _size;
+        _seed = SeedFromUrl ?? _seed;
+        Rebuild(newInput: true);
+        if (StepFromUrl is int step)
+        {
+            _player.Seek(step);
+        }
+    }
+
+    private void Rebuild(bool newInput)
+    {
+        if (newInput)
+        {
+            _input = InputGenerator.Create(_shape, _size, _seed);
+            _comparison = [.. AlgorithmCatalog.Sorts.Select(a => (a, a.Sort([.. _input])))];
+            _maxWork = Math.Max(1, _comparison.Max(c => Work(c.Counts)));
+        }
+
+        _player = new TracePlayer<int>(_algorithm.Record(_input));
+    }
+
+    private string StateOf(int index)
+    {
+        if (_player.IsAtEnd && !_player.IsAtStart)
+        {
+            return "sorted";
+        }
+
+        if (_player.Highlight is { } step)
+        {
+            bool touched = step.First == index || step.Second == index;
+            switch (step.Kind)
+            {
+                case StepKind.Swap or StepKind.Write when touched:
+                    return "swap";
+                case StepKind.Compare when touched:
+                    return "compare";
+                case StepKind.Read when touched:
+                    return "read";
+            }
+        }
+
+        return _player.IsMarkedSorted(index) ? "sorted" : "";
+    }
+
+    private void ChangeAlgorithm(ChangeEventArgs e) => Select(AlgorithmCatalog.FindSort(e.Value?.ToString() ?? ""));
+
+    private void Select(ISortAlgorithm algorithm)
+    {
+        _algorithm = algorithm;
+        Rebuild(newInput: false);
+    }
+
+    private void ChangeShape(ChangeEventArgs e)
+    {
+        _shape = Enum.Parse<InputShape>(e.Value?.ToString() ?? nameof(InputShape.Random));
+        Rebuild(newInput: true);
+    }
+
+    private void ChangeSize(ChangeEventArgs e)
+    {
+        _size = int.TryParse(e.Value?.ToString(), out int size) ? Math.Clamp(size, 8, 150) : _size;
+        Rebuild(newInput: true);
+    }
+
+    private void NewInput()
+    {
+        _seed = Random.Shared.Next();
+        Rebuild(newInput: true);
+    }
+
+    private static long Work(OperationCounts counts) => counts.Comparisons + counts.Swaps + counts.Writes;
+
+    private int WorkPercent(long work) => (int)Math.Max(1, Math.Round(work * 100.0 / _maxWork));
+
+    private static string ShapeName(InputShape shape) => shape switch
+    {
+        InputShape.Random => "Random",
+        InputShape.NearlySorted => "Nearly sorted",
+        InputShape.Reversed => "Reversed",
+        InputShape.FewUnique => "Few unique values",
+        InputShape.Sorted => "Already sorted",
+        _ => shape.ToString(),
+    };
+}
