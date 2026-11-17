@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <!-- xUnit v3 tests are self-hosting executables, run through Microsoft.Testing.Platform (see global.json). -->
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.12.0" />
+    <PackageReference Include="xunit.v3" Version="4.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AlgorithmVisualizer.Core\AlgorithmVisualizer.Core.csproj" />
+  </ItemGroup>
+
+</Project>
