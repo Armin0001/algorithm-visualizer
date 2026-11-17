@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <!-- The Blazor app trims this library; this turns on the trim analyzers so it stays safe to trim. -->
+    <IsTrimmable>true</IsTrimmable>
+  </PropertyGroup>
+
+</Project>

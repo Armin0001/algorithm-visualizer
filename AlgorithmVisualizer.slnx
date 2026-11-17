@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AlgorithmVisualizer.Core/AlgorithmVisualizer.Core.csproj" />
+    <Project Path="src/AlgorithmVisualizer.Web/AlgorithmVisualizer.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AlgorithmVisualizer.Core.Tests/AlgorithmVisualizer.Core.Tests.csproj" />
+  </Folder>
+</Solution>
