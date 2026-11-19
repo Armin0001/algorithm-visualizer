@@ -112,6 +112,45 @@ public class TracePlayerTests
         Assert.False(player.IsMarkedSorted(1));
     }
 
+    /// <summary>
+    /// The sorts are replayed through the catalog, but the searches only had the two hand-written cases
+    /// below: linear search was never replayed at all, and a fourth search would arrive with no replay
+    /// coverage. This runs every search in the catalog, forwards and backwards.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(TestData.AllSearches), MemberType = typeof(TestData))]
+    public void Replaying_a_recorded_search_rebuilds_its_match_and_its_counts(string id)
+    {
+        // Sorted, with a run of equal values, so the replay covers "the first match" too.
+        int[] values = [1, 3, 3, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27];
+        int[] targets = [1, 3, 27, 0, 4, 99]; // first, a duplicate, last, then below, in a gap and above
+
+        foreach (int target in targets)
+        {
+            int match = Array.IndexOf(values, target);
+            int? expected = match >= 0 ? match : null;
+            var run = TestData.Search(id).Record(values, target);
+            var player = new TracePlayer<int>(run);
+
+            Assert.Equal(expected, run.FoundIndex);
+
+            player.Seek(player.Length);
+
+            Assert.True(player.IsAtEnd);
+            Assert.Equal(run.FoundIndex, player.FoundIndex);
+            Assert.Equal(run.Counts, player.Counts);
+            Assert.Equal(values, player.Values); // a search compares, but never writes
+
+            while (player.StepBack())
+            {
+            }
+
+            Assert.Equal(default(OperationCounts), player.Counts);
+            Assert.Null(player.Window);
+            Assert.Null(player.FoundIndex);
+        }
+    }
+
     [Fact]
     public void Search_replay_tracks_the_window_and_the_match()
     {
