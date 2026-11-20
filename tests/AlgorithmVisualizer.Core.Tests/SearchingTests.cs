@@ -40,13 +40,37 @@ public class SearchingTests
         Assert.Equal(1, TestData.Search(id).Search(values, 2));
     }
 
-    [Fact]
-    public void Linear_search_does_not_need_sorted_input()
+    [Theory]
+    [MemberData(nameof(TestData.AnyOrderSearches), MemberType = typeof(TestData))]
+    public void Searches_not_marked_sorted_only_find_the_first_match_in_unsorted_input(string id)
     {
-        int[] values = [9, 4, 7, 4, 1];
+        var search = TestData.Search(id);
+        var random = new Random(43);
+        for (int trial = 0; trial < 500; trial++)
+        {
+            int[] values = TestData.RandomInts(random, random.Next(0, 60), 0, 20); // unsorted, with duplicates
+            int target = random.Next(-2, 23);
 
-        Assert.Equal(2, new LinearSearch().Search(values, 7));
-        Assert.Equal(1, new LinearSearch().Search(values, 4));
+            Assert.Equal(Array.IndexOf(values, target), search.Search(values, target));
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(TestData.SortedInputSearches), MemberType = typeof(TestData))]
+    public void Searches_marked_sorted_only_really_do_miss_matches_in_unsorted_input(string id)
+    {
+        var search = TestData.Search(id);
+        var random = new Random(44);
+        bool wrong = false;
+        for (int trial = 0; trial < 500 && !wrong; trial++)
+        {
+            int[] values = TestData.RandomInts(random, random.Next(2, 60), 0, 20);
+            int target = values[random.Next(values.Length)];
+
+            wrong = search.Search(values, target) != Array.IndexOf(values, target);
+        }
+
+        Assert.True(wrong, $"{id} is marked as needing sorted input, but it found the first match in every unsorted array tried.");
     }
 
     [Fact]

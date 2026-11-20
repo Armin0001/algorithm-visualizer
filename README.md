@@ -94,7 +94,7 @@ flowchart LR
 
 ## Tests
 
-127 tests, written with xUnit v3 on Microsoft.Testing.Platform. Most are theories that run against every algorithm in the catalog.
+129 tests, written with xUnit v3 on Microsoft.Testing.Platform. Most are theories that run against every algorithm in the catalog.
 
 - **Correctness**: sorts match `Array.Sort` on random arrays of 2 to 1,000 elements, on every input shape, and on negatives and `int.MinValue`/`int.MaxValue`.
   Searches match `Array.IndexOf`, duplicates included.

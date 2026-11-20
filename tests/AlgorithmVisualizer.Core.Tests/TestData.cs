@@ -24,6 +24,10 @@ public static class TestData
 
     public static TheoryData<string> AllSearches => Ids(AlgorithmCatalog.Searches.Select(a => a.Info));
 
+    public static TheoryData<string> SortedInputSearches => Ids(AlgorithmCatalog.Searches.Select(a => a.Info).Where(i => i.NeedsSortedInput));
+
+    public static TheoryData<string> AnyOrderSearches => Ids(AlgorithmCatalog.Searches.Select(a => a.Info).Where(i => !i.NeedsSortedInput));
+
     public static ISortAlgorithm Sort(string id) => AlgorithmCatalog.FindSort(id);
 
     public static ISearchAlgorithm Search(string id) => AlgorithmCatalog.FindSearch(id);
