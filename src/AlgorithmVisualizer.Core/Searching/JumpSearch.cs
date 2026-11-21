@@ -6,8 +6,8 @@ public sealed class JumpSearch : ISearchAlgorithm
         "jump-search",
         "Jump search",
         new Complexity("O(1)", "O(√n)", "O(√n)", "O(1)"),
-        "Jumps ahead √n elements at a time until it passes the target, then scans back through that one block. " +
-        "Slower than binary search, but it only ever moves forward, which suits data that is expensive to seek backwards in.")
+        "Jumps ahead √n elements at a time until it passes the target, then steps back once to scan that one block. " +
+        "Slower than binary search, but it steps backwards only that once, which suits data that is expensive to seek backwards in.")
     {
         NeedsSortedInput = true,
     };
