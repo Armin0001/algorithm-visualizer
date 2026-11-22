@@ -41,6 +41,21 @@ public class SearchingTests
     }
 
     [Theory]
+    [MemberData(nameof(TestData.AllSearches), MemberType = typeof(TestData))]
+    public void Searches_match_and_order_by_the_comparer_they_are_given(string id)
+    {
+        // Sorted case-insensitively, which is NOT ordinal order ("Banana" < "apple" ordinally), and the
+        // target differs in case from every element, so Equals alone would never find it.
+        var ignoreCase = StringComparer.OrdinalIgnoreCase;
+        string[] words = ["apple", "Banana", "banana", "BANANA", "cherry", "Date", "elder", "Fig", "grape", "Kiwi", "lemon", "Mango"];
+        var search = TestData.Search(id);
+
+        Assert.Equal(1, search.Search(new TrackedArray<string>(words, ignoreCase), "bAnAnA"));
+        Assert.Equal(11, search.Search(new TrackedArray<string>(words, ignoreCase), "MANGO"));
+        Assert.Equal(-1, search.Search(new TrackedArray<string>(words, ignoreCase), "honeydew"));
+    }
+
+    [Theory]
     [MemberData(nameof(TestData.AnyOrderSearches), MemberType = typeof(TestData))]
     public void Searches_not_marked_sorted_only_find_the_first_match_in_unsorted_input(string id)
     {
