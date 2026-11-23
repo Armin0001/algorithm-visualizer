@@ -63,24 +63,35 @@ public class TracePlayerTests
         Assert.Equal(input, run.Input); // recording works on a copy
     }
 
-    [Fact]
-    public void Seeking_lands_on_the_same_state_as_stepping()
+    /// <summary>
+    /// Dragging the scrubber back from the end must land on the frame that stepping forward from the
+    /// start reaches. This ran for quicksort alone, so a sort whose undo of a write or a sorted mark
+    /// drifted would only have shown up on screen. It now runs for every sort, and compares the sorted
+    /// marks as well, since those are drawn too.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(TestData.AllSorts), MemberType = typeof(TestData))]
+    public void Seeking_back_from_the_end_lands_on_the_same_state_as_stepping_forward(string id)
     {
-        var run = new QuickSort().Record(InputGenerator.Create(InputShape.Random, 50, seed: 7));
+        var run = TestData.Sort(id).Record(InputGenerator.Create(InputShape.Random, 50, seed: 7));
         var stepped = new TracePlayer<int>(run);
         var seeked = new TracePlayer<int>(run);
+        int middle = run.Steps.Count / 2;
+        Assert.True(middle > 0);
 
-        for (int i = 0; i < 100; i++)
+        for (int i = 0; i < middle; i++)
         {
             stepped.StepForward();
         }
 
         seeked.Seek(run.Steps.Count);
-        seeked.Seek(100);
+        seeked.Seek(middle);
 
+        Assert.Equal(middle, seeked.Position);
         Assert.Equal(stepped.Values, seeked.Values);
         Assert.Equal(stepped.Counts, seeked.Counts);
         Assert.Equal(stepped.Highlight, seeked.Highlight);
+        Assert.All(Enumerable.Range(0, run.Input.Count), i => Assert.Equal(stepped.IsMarkedSorted(i), seeked.IsMarkedSorted(i)));
     }
 
     [Fact]
