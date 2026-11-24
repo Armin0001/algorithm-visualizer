@@ -15,6 +15,10 @@ public static class TestData
 
     public static TheoryData<string> UnstableSorts => Ids(AlgorithmCatalog.Sorts.Select(a => a.Info).Where(i => !i.IsStable));
 
+    public static TheoryData<string> InPlaceSorts => Ids(AlgorithmCatalog.Sorts.Select(a => a.Info).Where(i => i.IsInPlace));
+
+    public static TheoryData<string> OutOfPlaceSorts => Ids(AlgorithmCatalog.Sorts.Select(a => a.Info).Where(i => !i.IsInPlace));
+
     public static TheoryData<string> ComparisonSorts => Ids(AlgorithmCatalog.Sorts.Select(a => a.Info).Where(i => !i.NeedsIntegerKeys));
 
     public static TheoryData<string> IntegerSorts => Ids(AlgorithmCatalog.Sorts.Select(a => a.Info).Where(i => i.NeedsIntegerKeys));

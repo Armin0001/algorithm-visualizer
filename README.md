@@ -94,12 +94,14 @@ flowchart LR
 
 ## Tests
 
-140 tests, written with xUnit v3 on Microsoft.Testing.Platform. Most are theories that run against every algorithm in the catalog.
+149 tests, written with xUnit v3 on Microsoft.Testing.Platform. Most are theories that run against every algorithm in the catalog.
 
 - **Correctness**: sorts match `Array.Sort` on random arrays of 2 to 1,000 elements, on every input shape, and on negatives and `int.MinValue`/`int.MaxValue`.
   Searches match `Array.IndexOf`, duplicates included.
 - **Stability, in both directions**: stable sorts never reorder equal keys, and every sort labelled unstable must be caught doing it,
   so the label in the UI can't be wrong either way.
+- **In place, also in both directions**: sorts labelled in place allocate under 1 KB of heap while sorting 8,192 ints, and the ones
+  labelled as using extra memory must be caught allocating at least a half-size buffer.
 - **Complexity, as numbers**: exact counts where theory gives one (selection sort makes exactly n(n−1)/2 comparisons; bubble and insertion sort
   swap exactly once per inversion; binary search stays within ⌊log₂n⌋ + 2 comparisons), and comparison budgets for the n log n sorts on six
   input shapes, including the ones that broke the first quicksort.
