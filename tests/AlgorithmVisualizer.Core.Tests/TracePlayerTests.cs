@@ -64,6 +64,31 @@ public class TracePlayerTests
     }
 
     /// <summary>
+    /// The search page shows the recorded counts, while the complexity tests measure a silent search. This
+    /// holds the two to the same numbers, as the sort test above does, so a recorder that counted a step
+    /// the silent path does not would show up here rather than as a wrong figure on screen.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(TestData.AllSearches), MemberType = typeof(TestData))]
+    public void Recording_does_not_change_what_the_search_does(string id)
+    {
+        int[] values = [.. TestData.RandomInts(new Random(10), 80, 0, 40).Order()];
+        int[] targets = [-1, values[0], values[40], values[^1], 41];
+
+        foreach (int target in targets)
+        {
+            var silent = new TrackedArray<int>([.. values]);
+            int index = TestData.Search(id).Search(silent, target);
+
+            var run = TestData.Search(id).Record(values, target);
+
+            Assert.Equal(index >= 0 ? index : null, run.FoundIndex);
+            Assert.Equal(silent.Counts, run.Counts);
+            Assert.Equal(values, run.Input);
+        }
+    }
+
+    /// <summary>
     /// Dragging the scrubber back from the end must land on the frame that stepping forward from the
     /// start reaches. This ran for quicksort alone, so a sort whose undo of a write or a sorted mark
     /// drifted would only have shown up on screen. It now runs for every sort, and compares the sorted
