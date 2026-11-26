@@ -1,4 +1,5 @@
 using AlgorithmVisualizer.Core.Sorting;
+using AlgorithmVisualizer.Core.Tracing;
 
 namespace AlgorithmVisualizer.Core.Tests;
 
@@ -49,6 +50,24 @@ public class ComplexityTests
             Assert.Equal((long)n * (n - 1) / 2, counts.Comparisons);
             Assert.InRange(counts.Swaps, 0, n - 1);
         }
+    }
+
+    /// <summary>
+    /// Selection sort swaps slot i with the minimum on every pass, even when the minimum is already in slot i,
+    /// and relies on <see cref="TrackedArray{T}"/> to treat that as no swap at all. If it didn't, sorted input
+    /// would show n - 1 swaps on screen and the replay would spend a frame on each swap that moved nothing.
+    /// </summary>
+    [Fact]
+    public void Selection_sort_makes_no_swaps_on_sorted_input()
+    {
+        int[] values = [.. Enumerable.Range(0, 300)];
+
+        var counts = new SelectionSort().Sort([.. values]);
+        var run = new SelectionSort().Record(values);
+
+        Assert.Equal(0, counts.Swaps);
+        Assert.Equal(0, run.Counts.Swaps);
+        Assert.DoesNotContain(run.Steps, step => step.Kind == StepKind.Swap);
     }
 
     [Fact]
