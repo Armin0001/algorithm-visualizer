@@ -115,6 +115,28 @@ public class SearchingTests
         }
     }
 
+    /// <summary>
+    /// The table lists binary search's best case as O(log n), not the usual O(1), because the lower-bound variant
+    /// keeps halving after a hit to find the first match. An early exit would make the middle element a one-comparison
+    /// find and the table wrong, while every correctness test still passed.
+    /// </summary>
+    [Fact]
+    public void Binary_search_keeps_halving_after_a_hit_so_its_best_case_is_log_n()
+    {
+        foreach (int n in Lengths)
+        {
+            int[] evens = [.. Enumerable.Range(0, n).Select(i => i * 2)];
+            long floor = (long)Math.Floor(Math.Log2(n)) + 1;
+            foreach (int target in (int[])[evens[0], evens[n / 2], evens[^1]])
+            {
+                var tracked = new TrackedArray<int>(evens);
+
+                Assert.Equal(Array.IndexOf(evens, target), new BinarySearch().Search(tracked, target));
+                Assert.InRange(tracked.Counts.Comparisons, floor, long.MaxValue);
+            }
+        }
+    }
+
     [Fact]
     public void Jump_search_makes_about_2_sqrt_n_comparisons()
     {
